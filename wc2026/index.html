@@ -237,15 +237,15 @@
             if (!target || !target.dataset || !target.dataset.action) return;
 
             if (target.dataset.action === "switch-view") {
-                // switchView(target.dataset.view); // Call your existing switchView function
+                switchView(target.dataset.view); // Call your existing switchView function
             } else if (target.dataset.action === "open-reset-modal") {
                 document.getElementById("resetModal").style.display = "flex";
             } else if (target.dataset.action === "cancel-reset") {
                 document.getElementById("resetModal").style.display = "none";
             } else if (target.dataset.action === "confirm-reset") {
                 globalData = { matches: null, fantasy: {} };
-                // initMatches(); // Re-initialize your matches
-                // switchView(currentView); // Refresh View
+                initMatches(); // Re-initialize your matches
+                switchView(currentView); // Refresh View
                 document.getElementById("resetModal").style.display = "none";
             } else if (target.dataset.action === "export-json") {
                 exportDataFile();
@@ -256,8 +256,8 @@
 
         // Wait for DOM
         document.addEventListener('DOMContentLoaded', () => {
-            // initMatches(); 
-            // switchView('standings');
+            initMatches(); 
+            switchView('standings');
         });
     </script>
     <script>
