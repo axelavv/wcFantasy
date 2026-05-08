@@ -1,21 +1,21 @@
-const CACHE_NAME = 'wc2026-cache-v1';
-const urlsToCache = [
+const CACHE_NAME = 'wc2026-v1';
+const ASSETS = [
   './',
   './index.html',
   './manifest.json',
   './icon-512.png'
 ];
 
-self.addEventListener('install', event => {
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(urlsToCache))
+// Install and Cache
+self.addEventListener('install', (e) => {
+  e.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
   );
 });
 
-self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => response || fetch(event.request))
+// Fetch from Cache
+self.addEventListener('fetch', (e) => {
+  e.respondWith(
+    caches.match(e.request).then((res) => res || fetch(e.request))
   );
 });

@@ -1,9 +1,9 @@
 {
-  "name": "WC 2026 Tracker",
+  "name": "2026 World Cup Tracker",
   "short_name": "WC2026",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#f4f7f6",
+  "background_color": "#007bff",
   "theme_color": "#007bff",
   "icons": [
     {

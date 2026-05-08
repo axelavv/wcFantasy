@@ -2,8 +2,21 @@
 <html lang="en">
 <head>
     <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#007bff">
+    <link rel="apple-touch-icon" href="icon-512.png">
+
+    <script>
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('SW Registered'))
+                .catch(err => console.log('SW Registration Failed', err));
+            });
+        }
+    </script>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>2026 World Cup Tracker</title>
     
     <script>
@@ -25,10 +38,9 @@
     <style>
         :root { --bg-color: #f4f7f6; --card-bg: #ffffff; --primary: #007bff; --text-main: #333; --border: #e0e0e0; }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"; }
-        /* Added safe-area-inset-top for iOS Notches */
-        body { background-color: var(--bg-color); color: var(--text-main); padding-bottom: 70px; padding-top: env(safe-area-inset-top); }
+        body { background-color: var(--bg-color); color: var(--text-main); padding-bottom: 70px; }
         
-        header { background-color: var(--primary); color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: env(safe-area-inset-top); z-index: 100; }
+        header { background-color: var(--primary); color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
         header h1 { font-size: 1.4rem; flex-grow: 1; text-align: center; margin: 0; }
         .header-btn { background: none; border: none; font-size: 1.4rem; cursor: pointer; color: white; width: 35px; display: flex; justify-content: center; align-items: center; padding: 0; }
         .header-controls { display: flex; gap: 10px; }
@@ -114,7 +126,7 @@
     <main id="app-content"></main>
 
     <nav class="bottom-nav">
-        <button id="nav-standings" data-action="switch-view" data-view="standings" class="active">📊 Standings</button>
+        <button id="nav-standings" data-action="switch-view" data-view="standings">📊 Standings</button>
         <button id="nav-matches" data-action="switch-view" data-view="matches">⚽ Matches</button>
         <button id="nav-fantasy" data-action="switch-view" data-view="fantasy">🔮 Fantasy</button>
     </nav>
@@ -137,135 +149,524 @@
             fantasy: {}
         };
 
-        // --- PASTE YOUR EXISTING ARRAYS HERE ---
-        // Insert: worldCupGroups
-        // Insert: matchSchedule
-        // Insert: koPhases
+        var worldCupGroups = {
+            A: [{id: "MEX", flag: "🇲🇽"}, {id: "RSA", flag: "🇿🇦"}, {id: "KOR", flag: "🇰🇷"}, {id: "CZE", flag: "🇨🇿"}],
+            B: [{id: "CAN", flag: "🇨🇦"}, {id: "BIH", flag: "🇧🇦"}, {id: "QAT", flag: "🇶🇦"}, {id: "SUI", flag: "🇨🇭"}],
+            C: [{id: "BRA", flag: "🇧🇷"}, {id: "MAR", flag: "🇲🇦"}, {id: "HAI", flag: "🇭🇹"}, {id: "SCO", flag: "🏴󠁧󠁢󠁳󠁣󠁴󠁿"}],
+            D: [{id: "USA", flag: "🇺🇸"}, {id: "PAR", flag: "🇵🇾"}, {id: "AUS", flag: "🇦🇺"}, {id: "TUR", flag: "🇹🇷"}],
+            E: [{id: "GER", flag: "🇩🇪"}, {id: "CUW", flag: "🇨🇼"}, {id: "CIV", flag: "🇨🇮"}, {id: "ECU", flag: "🇪🇨"}],
+            F: [{id: "NED", flag: "🇳🇱"}, {id: "JPN", flag: "🇯🇵"}, {id: "SWE", flag: "🇸🇪"}, {id: "TUN", flag: "🇹🇳"}],
+            G: [{id: "BEL", flag: "🇧🇪"}, {id: "EGY", flag: "🇪🇬"}, {id: "IRN", flag: "🇮🇷"}, {id: "NZL", flag: "🇳🇿"}],
+            H: [{id: "ESP", flag: "🇪🇸"}, {id: "CPV", flag: "🇨🇻"}, {id: "KSA", flag: "🇸🇦"}, {id: "URU", flag: "🇺🇾"}],
+            I: [{id: "FRA", flag: "🇫🇷"}, {id: "SEN", flag: "🇸🇳"}, {id: "IRQ", flag: "🇮🇶"}, {id: "NOR", flag: "🇳🇴"}],
+            J: [{id: "ARG", flag: "🇦🇷"}, {id: "ALG", flag: "🇩🇿"}, {id: "AUT", flag: "🇦🇹"}, {id: "JOR", flag: "🇯🇴"}],
+            K: [{id: "POR", flag: "🇵🇹"}, {id: "COD", flag: "🇨🇩"}, {id: "UZB", flag: "🇺🇿"}, {id: "COL", flag: "🇨🇴"}],
+            L: [{id: "ENG", flag: "🏴󠁧󠁢󠁥󠁮󠁧󠁿"}, {id: "CRO", flag: "🇭🇷"}, {id: "GHA", flag: "🇬🇭"}, {id: "PAN", flag: "🇵🇦"}]
+        };
+
+        var matchSchedule = {
+            "A-0": "Jun 11, 1:00 PM", "A-1": "Jun 11, 8:00 PM", "A-2": "Jun 18, 7:00 PM", "A-3": "Jun 18, 10:00 AM", "A-4": "Jun 24, 7:00 PM", "A-5": "Jun 24, 7:00 PM",
+            "B-0": "Jun 12, 1:00 PM", "B-1": "Jun 13, 1:00 PM", "B-2": "Jun 18, 4:00 PM", "B-3": "Jun 18, 1:00 PM", "B-4": "Jun 24, 1:00 PM", "B-5": "Jun 24, 1:00 PM",
+            "C-0": "Jun 13, 4:00 PM", "C-1": "Jun 13, 7:00 PM", "C-2": "Jun 19, 7:00 PM", "C-3": "Jun 19, 4:00 PM", "C-4": "Jun 24, 4:00 PM", "C-5": "Jun 24, 4:00 PM",
+            "D-0": "Jun 12, 7:00 PM", "D-1": "Jun 13, 9:59 PM", "D-2": "Jun 19, 1:00 PM", "D-3": "Jun 19, 9:59 PM", "D-4": "Jun 25, 8:00 PM", "D-5": "Jun 25, 8:00 PM",
+            "E-0": "Jun 14, 11:00 AM", "E-1": "Jun 14, 5:00 PM", "E-2": "Jun 20, 2:00 PM", "E-3": "Jun 20, 6:00 PM", "E-4": "Jun 25, 2:00 PM", "E-5": "Jun 25, 2:00 PM",
+            "F-0": "Jun 14, 2:00 PM", "F-1": "Jun 14, 8:00 PM", "F-2": "Jun 20, 11:00 AM", "F-3": "Jun 20, 9:59 PM", "F-4": "Jun 25, 5:00 PM", "F-5": "Jun 25, 5:00 PM",
+            "G-0": "Jun 15, 1:00 PM", "G-1": "Jun 15, 7:00 PM", "G-2": "Jun 21, 1:00 PM", "G-3": "Jun 21, 7:00 PM", "G-4": "Jun 26, 9:00 PM", "G-5": "Jun 26, 9:00 PM",
+            "H-0": "Jun 15, 10:00 AM", "H-1": "Jun 15, 4:00 PM", "H-2": "Jun 21, 10:00 AM", "H-3": "Jun 21, 4:00 PM", "H-4": "Jun 26, 6:00 PM", "H-5": "Jun 26, 6:00 PM",
+            "I-0": "Jun 16, 1:00 PM", "I-1": "Jun 16, 4:00 PM", "I-2": "Jun 22, 3:00 PM", "I-3": "Jun 22, 6:00 PM", "I-4": "Jun 26, 1:00 PM", "I-5": "Jun 26, 1:00 PM",
+            "J-0": "Jun 16, 7:00 PM", "J-1": "Jun 16, 9:59 PM", "J-2": "Jun 22, 11:00 AM", "J-3": "Jun 22, 9:00 PM", "J-4": "Jun 27, 8:00 PM", "J-5": "Jun 27, 8:00 PM",
+            "K-0": "Jun 17, 11:00 AM", "K-1": "Jun 17, 8:00 PM", "K-2": "Jun 23, 11:00 AM", "K-3": "Jun 23, 8:00 PM", "K-4": "Jun 27, 5:30 PM", "K-5": "Jun 27, 5:30 PM",
+            "L-0": "Jun 17, 2:00 PM", "L-1": "Jun 17, 5:00 PM", "L-2": "Jun 23, 2:00 PM", "L-3": "Jun 23, 5:00 PM", "L-4": "Jun 27, 3:00 PM", "L-5": "Jun 27, 3:00 PM",
+            "r32-0": "Jun 28, 1:00 PM", "r32-1": "Jun 29, 2:30 PM", "r32-2": "Jun 29, 7:00 PM", "r32-3": "Jun 30, 12:00 PM", "r32-4": "Jun 30, 3:00 PM", "r32-5": "Jun 30, 7:00 PM", "r32-6": "Jul 1, 10:00 AM", "r32-7": "Jul 1, 2:00 PM", "r32-8": "Jul 1, 6:00 PM", "r32-9": "Jul 2, 1:00 PM", "r32-10": "Jul 2, 5:00 PM", "r32-11": "Jul 2, 9:00 PM", "r32-12": "Jun 29, 11:00 AM", "r32-13": "Jul 3, 12:00 PM", "r32-14": "Jul 3, 4:00 PM", "r32-15": "Jul 3, 7:30 PM",
+            "r16-0": "Jul 4, 3:00 PM", "r16-1": "Jul 4, 11:00 AM", "r16-2": "Jul 5, 2:00 PM", "r16-3": "Jul 5, 6:00 PM", "r16-4": "Jul 6, 1:00 PM", "r16-5": "Jul 6, 6:00 PM", "r16-6": "Jul 7, 10:00 AM", "r16-7": "Jul 7, 2:00 PM",
+            "qf-0": "Jul 9, 2:00 PM", "qf-1": "Jul 10, 1:00 PM", "qf-2": "Jul 11, 3:00 PM", "qf-3": "Jul 11, 7:00 PM",
+            "sf-0": "Jul 14, 1:00 PM", "sf-1": "Jul 15, 1:00 PM",
+            "3rd-0": "Jul 18, 3:00 PM",
+            "final-0": "Jul 19, 1:00 PM"
+        };
 
         var currentView = 'standings';
         var currentPhase = 'group';
         var currentMatchGroup = 'A';
+        var koPhases = { r32: "Round of 32", r16: "Round of 16", qf: "Quarter-finals", sf: "Semi-finals", "3rd": "3rd Place Match", final: "Final" };
 
-        // --- PASTE YOUR EXISTING GET/SAVE FUNCTIONS HERE ---
-        // getTeamFlag(id), safeGetMatches(), safeSaveMatches(), sanitizeScore(), initMatches() etc...
-        // ... (Keep all your existing rendering logic, table math, and loop traversals intact)
+        function getTeamFlag(id) {
+            for (const group in worldCupGroups) {
+                const team = worldCupGroups[group].find(t => t.id === id);
+                if (team) return team.flag;
+            }
+            return "";
+        }
 
+        // Adapted to read purely from global memory object
+        function safeGetMatches() {
+            return Array.isArray(globalData.matches) ? globalData.matches : null;
+        }
+        function safeSaveMatches(data) {
+            globalData.matches = data;
+            localStorage.setItem('wc26_matches', JSON.stringify(data));
+        }
         
-        // =========================================================
-        // 💾 CAPACITOR MOBILE-NATIVE FILE EXPORT LOGIC
-        // =========================================================
-        async function exportDataFile() {
-            const jsonString = JSON.stringify(globalData, null, 2);
-            const fileName = "wc26_backup.json";
+        function safeGetFantasy() {
+            return (globalData.fantasy !== null && typeof globalData.fantasy === 'object' && !Array.isArray(globalData.fantasy)) ? globalData.fantasy : {};
+        }
+        function safeSaveFantasy(data) {
+            globalData.fantasy = data;
+        }
 
-            // Check if running natively inside iOS/Android via Capacitor
-            if (window.Capacitor && window.Capacitor.isNative) {
-                try {
-                    const { Filesystem, Directory, Encoding } = window.Capacitor.Plugins;
-                    const Share = window.Capacitor.Plugins.Share;
+        function sanitizeScore(val) {
+            if (val === undefined || val === null || String(val).trim() === "") return "";
+            var num = parseInt(val, 10);
+            if (isNaN(num) || num < 0) return ""; 
+            return num.toString();
+        }
 
-                    // 1. Save to mobile device Cache Directory
-                    const result = await Filesystem.writeFile({
-                        path: fileName,
-                        data: jsonString,
-                        directory: Directory.Cache,
-                        encoding: Encoding.UTF8
+        function initMatches() {
+            let matches = safeGetMatches();
+            let updated = false;
+
+            if (!matches) { matches = []; updated = true; }
+
+            if (!matches.some(m => m.phase === 'group' || !m.phase)) {
+                for (const [group, teams] of Object.entries(worldCupGroups)) {
+                    const pairs = [[0,1], [2,3], [0,2], [1,3], [0,3], [1,2]];
+                    pairs.forEach((p, idx) => {
+                        matches.push({ id: `${group}-${idx}`, group: group, phase: 'group', t1: teams[p[0]].id, t2: teams[p[1]].id, s1: "", s2: "", yc1: "", rc1: "", yc2: "", rc2: "" });
                     });
-
-                    // 2. Open Native iOS / Android Share Sheet
-                    await Share.share({
-                        title: 'WC2026 Backup Data',
-                        text: 'My World Cup Tracker Data Backup.',
-                        url: result.uri,
-                        dialogTitle: 'Save Backup File'
-                    });
-                } catch (error) {
-                    alert("Export Error: " + error.message);
                 }
+                updated = true;
+            }
+
+            if (!matches.some(m => m.phase === 'r32')) {
+                const r32_rules = [ { t1: '2A', t2: '2B' }, { t1: '1E', t2: '3RD' }, { t1: '1F', t2: '2C' }, { t1: '2E', t2: '2I' }, { t1: '1I', t2: '3RD' }, { t1: '1A', t2: '3RD' }, { t1: '1L', t2: '3RD' }, { t1: '1G', t2: '3RD' }, { t1: '1D', t2: '3RD' }, { t1: '1H', t2: '2J' }, { t1: '2K', t2: '2L' }, { t1: '1B', t2: '3RD' }, { t1: '1C', t2: '2F' }, { t1: '2D', t2: '2G' }, { t1: '1J', t2: '2H' }, { t1: '1K', t2: '3RD' } ];
+                r32_rules.forEach((rule, idx) => { matches.push({ id: `r32-${idx}`, phase: 'r32', rule1: rule.t1, rule2: rule.t2, manual_t1: "", manual_t2: "", s1: "", s2: "" }); });
+                updated = true;
+            }
+
+            if (!matches.some(m => m.phase === 'r16')) {
+                const r16_rules = [ { t1: 'W_r32-1', t2: 'W_r32-4' }, { t1: 'W_r32-0', t2: 'W_r32-2' }, { t1: 'W_r32-12', t2: 'W_r32-3' }, { t1: 'W_r32-5', t2: 'W_r32-6' }, { t1: 'W_r32-10', t2: 'W_r32-9' }, { t1: 'W_r32-8', t2: 'W_r32-7' }, { t1: 'W_r32-14', t2: 'W_r32-13' }, { t1: 'W_r32-11', t2: 'W_r32-15' } ];
+                r16_rules.forEach((rule, idx) => { matches.push({ id: `r16-${idx}`, phase: 'r16', rule1: rule.t1, rule2: rule.t2, manual_t1: "", manual_t2: "", s1: "", s2: "" }); });
+                updated = true;
+            }
+
+            if (!matches.some(m => m.phase === 'qf')) {
+                const qf_rules = [ { t1: 'W_r16-0', t2: 'W_r16-1' }, { t1: 'W_r16-4', t2: 'W_r16-5' }, { t1: 'W_r16-2', t2: 'W_r16-3' }, { t1: 'W_r16-6', t2: 'W_r16-7' } ];
+                qf_rules.forEach((rule, idx) => { matches.push({ id: `qf-${idx}`, phase: 'qf', rule1: rule.t1, rule2: rule.t2, manual_t1: "", manual_t2: "", s1: "", s2: "" }); });
+                updated = true;
+            }
+
+            if (!matches.some(m => m.phase === 'sf')) {
+                const sf_rules = [ { t1: 'W_qf-0', t2: 'W_qf-1' }, { t1: 'W_qf-2', t2: 'W_qf-3' } ];
+                sf_rules.forEach((rule, idx) => { matches.push({ id: `sf-${idx}`, phase: 'sf', rule1: rule.t1, rule2: rule.t2, manual_t1: "", manual_t2: "", s1: "", s2: "" }); });
+                updated = true;
+            }
+
+            if (!matches.some(m => m.phase === '3rd')) {
+                matches.push({ id: `3rd-0`, phase: '3rd', rule1: 'L_sf-0', rule2: 'L_sf-1', manual_t1: "", manual_t2: "", s1: "", s2: "" });
+                updated = true;
+            }
+            if (!matches.some(m => m.phase === 'final')) {
+                matches.push({ id: `final-0`, phase: 'final', rule1: 'W_sf-0', rule2: 'W_sf-1', manual_t1: "", manual_t2: "", s1: "", s2: "" });
+                updated = true;
+            }
+
+            if (updated) safeSaveMatches(matches);
+            return matches;
+        }
+
+        function calculateStandings(matches) {
+            let standings = {};
+            for (const [group, teams] of Object.entries(worldCupGroups)) {
+                standings[group] = teams.map(t => ({ id: t.id, flag: t.flag, mp: 0, gf: 0, ga: 0, gd: 0, yc: 0, rc: 0, pts: 0 }));
+            }
+            matches.forEach(m => {
+                if ((m.phase === 'group' || !m.phase) && m.s1 !== "" && m.s2 !== "") {
+                    let groupSt = standings[m.group];
+                    if (!groupSt) return; 
+                    let t1 = groupSt.find(t => t.id === m.t1);
+                    let t2 = groupSt.find(t => t.id === m.t2);
+                    if (t1 && t2) { 
+                        let s1 = parseInt(m.s1), s2 = parseInt(m.s2);
+                        let yc1 = parseInt(m.yc1)||0, rc1 = parseInt(m.rc1)||0;
+                        let yc2 = parseInt(m.yc2)||0, rc2 = parseInt(m.rc2)||0;
+                        t1.mp++; t2.mp++; t1.gf += s1; t2.gf += s2; t1.ga += s2; t2.ga += s1;
+                        t1.yc += yc1; t1.rc += rc1; t2.yc += yc2; t2.rc += rc2;
+                        if (s1 > s2) t1.pts += 3; else if (s1 < s2) t2.pts += 3; else { t1.pts += 1; t2.pts += 1; }
+                    }
+                }
+            });
+            for (const group in standings) {
+                standings[group].forEach(t => t.gd = t.gf - t.ga);
+                standings[group].sort((a, b) => {
+                    if (b.pts !== a.pts) return b.pts - a.pts;
+                    if (b.gd !== a.gd) return b.gd - a.gd;
+                    if (b.gf !== a.gf) return b.gf - a.gf;
+                    return (a.yc + (a.rc * 3)) - (b.yc + (b.rc * 3)); 
+                });
+            }
+            return standings;
+        }
+
+        function resolveParticipant(rule, manualId, thirdPlaces, standings, matches) {
+            if (!rule) return null;
+            if (rule.startsWith("W_") || rule.startsWith("L_")) {
+                let prevMatchId = rule.substring(2);
+                let prevMatch = matches.find(m => m.id === prevMatchId);
+                if (!prevMatch || prevMatch.s1 === "" || prevMatch.s2 === "") return null;
+                let s1 = parseInt(prevMatch.s1), s2 = parseInt(prevMatch.s2);
+                if (s1 === s2) return null; 
+                let advanceT1 = (rule.startsWith("W_") && s1 > s2) || (rule.startsWith("L_") && s1 < s2);
+                let advanceT2 = (rule.startsWith("W_") && s2 > s1) || (rule.startsWith("L_") && s2 < s1);
+                if (advanceT1) return resolveParticipant(prevMatch.rule1, prevMatch.manual_t1, thirdPlaces, standings, matches);
+                if (advanceT2) return resolveParticipant(prevMatch.rule2, prevMatch.manual_t2, thirdPlaces, standings, matches);
+                return null;
+            }
+            if (rule === '3RD') {
+                if (manualId) { let t = thirdPlaces.find(x => x.id === manualId); return t ? t : { id: manualId, flag: "❓" }; }
+                return null;
+            }
+            let pos = parseInt(rule[0]) - 1; 
+            let grp = rule[1];
+            return standings[grp] ? standings[grp][pos] : null;
+        }
+
+        function getKnockoutTeamUI(rule, manualId, thirdPlaces, standings, matches, matchId, tKey, isFantasy) {
+            if (rule === '3RD') {
+                if(isFantasy) {
+                    let resolved = resolveParticipant(rule, manualId, thirdPlaces, standings, matches);
+                    if(resolved) return `<span class="team-label">${resolved.flag} ${resolved.id}</span>`;
+                    return `<span class="team-label" style="color:#999; font-style:italic; font-size:0.85rem">TBD (3rd)</span>`;
+                }
+                const top8Thirds = thirdPlaces.slice(0, 8);
+                return `<select class="team-label" style="width:110px; padding:4px;" id="${tKey}_sel_${matchId}">
+                    <option value="">- 3rd -</option>` + top8Thirds.map(t => `<option value="${t.id}" ${t.id===manualId?'selected':''}>${t.flag} ${t.id}</option>`).join('') + `</select>`;
+            }
+            let resolvedTeam = resolveParticipant(rule, manualId, thirdPlaces, standings, matches);
+            if (resolvedTeam) {
+                let traceStr = (rule.length === 2 && !isFantasy) ? ` <span style="font-size:0.7em;color:gray">(${rule})</span>` : "";
+                return `<span class="team-label">${resolvedTeam.flag} ${resolvedTeam.id}${traceStr}</span>`;
             } else {
-                // Fallback for standard desktop web browser
-                const blob = new Blob([jsonString], { type: "application/json" });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = fileName;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
+                let label = "TBD";
+                if (rule.startsWith("W_")) label = `Winner ${rule.split('-')[0].replace('W_', '').toUpperCase()}`;
+                if (rule.startsWith("L_")) label = `Loser ${rule.split('-')[0].replace('L_', '').toUpperCase()}`;
+                return `<span class="team-label" style="color:#999; font-style:italic; font-size:0.85rem">${label}</span>`;
             }
         }
 
-        // =========================================================
-        // 📂 FILE IMPORT LOGIC (Works on Mobile + Web seamlessly)
-        // =========================================================
-        document.getElementById("fileImporter").addEventListener("change", function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
+        function renderStandings() {
+            const matches = initMatches();
+            const standings = calculateStandings(matches);
+            let html = `<div class="container">`;
 
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                try {
-                    const parsedData = JSON.parse(event.target.result);
-                    if (parsedData && parsedData.matches) {
-                        globalData = parsedData;
-                        // Ensure backwards compatibility with any missing states
-                        if (!globalData.fantasy) globalData.fantasy = {}; 
-                        initMatches();
-                        switchView(currentView);
-                        alert("✅ Backup Data Loaded Successfully!");
-                    } else {
-                        alert("❌ Invalid JSON file format.");
-                    }
-                } catch (err) {
-                    alert("❌ Error parsing the file: " + err.message);
+            if (currentPhase === 'group') {
+                for (const [group, teams] of Object.entries(standings)) {
+                    html += `<div class="group-card"><h2>Group ${group}</h2><table><thead><tr><th style="text-align:left">Team</th><th>🏟️</th><th>⚽</th><th>🥅</th><th>⚖️</th><th>Pts</th></tr></thead><tbody>`;
+                    teams.forEach(t => { html += `<tr><td class="team-name">${t.flag} ${t.id}</td><td>${t.mp}</td><td>${t.gf}</td><td>${t.ga}</td><td>${t.gd > 0 ? '+'+t.gd : t.gd}</td><td><strong>${t.pts}</strong></td></tr>`; });
+                    html += `</tbody></table></div>`;
                 }
+            } else if (currentPhase === 'best3rd') {
+                let thirdPlaces = [];
+                for (const [group, teams] of Object.entries(standings)) { thirdPlaces.push({ ...teams[2], originGroup: group }); }
+                thirdPlaces.sort((a, b) => {
+                    if (b.pts !== a.pts) return b.pts - a.pts; if (b.gd !== a.gd) return b.gd - a.gd; if (b.gf !== a.gf) return b.gf - a.gf; return (a.yc + (a.rc * 3)) - (b.yc + (b.rc * 3)); 
+                });
+                html += `<div class="group-card"><h2>Top 8 Advance to Round of 32</h2><table><thead><tr><th style="text-align:left">Team (Grp)</th><th>🏟️</th><th>⚽</th><th>🥅</th><th>⚖️</th><th>Pts</th></tr></thead><tbody>`;
+                thirdPlaces.forEach((t, index) => {
+                    let rowClass = index < 8 ? "advancing-row" : "eliminated-row";
+                    html += `<tr class="${rowClass}"><td class="team-name">${t.flag} ${t.id} <span style="font-size:0.8em;color:gray">(${t.originGroup})</span></td><td>${t.mp}</td><td>${t.gf}</td><td>${t.ga}</td><td>${t.gd > 0 ? '+'+t.gd : t.gd}</td><td><strong>${t.pts}</strong></td></tr>`;
+                });
+                html += `</tbody></table></div>`;
+            } else {
+                html += `<div class="placeholder-message"><h3>${koPhases[currentPhase]}</h3><p>Standings are not applicable here. Switch to the <strong>⚽ Matches</strong> tab.</p></div>`;
+            }
+            html += `</div>`;
+            document.getElementById('app-content').innerHTML = html;
+        }
+
+        function renderMatches() {
+            const matches = initMatches();
+            let html = `<div class="container">`;
+            
+            if (currentPhase === 'group') {
+                html += `<div class="group-selector"><label>Filter by Group:</label><select id="groupSelect">`;
+                Object.keys(worldCupGroups).forEach(groupLetter => { html += `<option value="${groupLetter}" ${groupLetter === currentMatchGroup ? "selected" : ""}>Group ${groupLetter}</option>`; });
+                html += `</select></div>`;
+
+                const filteredMatches = matches.filter(m => (m.phase === 'group' || !m.phase) && m.group === currentMatchGroup);
+                filteredMatches.forEach(m => {
+                    html += `<div class="match-card">
+                                <div class="match-date-header">📅 ${matchSchedule[m.id]} (CDMX)</div>
+                                <div class="match-row"><span class="team-label">${getTeamFlag(m.t1)} ${m.t1}</span>
+                                    <div class="stat-inputs"><input type="number" min="0" id="s1_${m.id}" value="${m.s1}" placeholder="⚽"><input type="number" min="0" id="yc1_${m.id}" value="${m.yc1}" placeholder="🟨"><input type="number" min="0" id="rc1_${m.id}" value="${m.rc1}" placeholder="🟥"></div>
+                                </div>
+                                <div class="match-row"><span class="team-label">${getTeamFlag(m.t2)} ${m.t2}</span>
+                                    <div class="stat-inputs"><input type="number" min="0" id="s2_${m.id}" value="${m.s2}" placeholder="⚽"><input type="number" min="0" id="yc2_${m.id}" value="${m.yc2}" placeholder="🟨"><input type="number" min="0" id="rc2_${m.id}" value="${m.rc2}" placeholder="🟥"></div>
+                                </div>
+                                <button class="save-btn" id="btn_${m.id}" data-action="save-match" data-match="${m.id}">Save Result</button>
+                            </div>`;
+                });
+            } else if (koPhases[currentPhase]) {
+                const standings = calculateStandings(matches);
+                let thirdPlaces = [];
+                for (const [group, teams] of Object.entries(standings)) { thirdPlaces.push(teams[2]); }
+                thirdPlaces.sort((a, b) => { if (b.pts !== a.pts) return b.pts - a.pts; if (b.gd !== a.gd) return b.gd - a.gd; if (b.gf !== a.gf) return b.gf - a.gf; return (a.yc + (a.rc * 3)) - (b.yc + (b.rc * 3)); });
+                
+                html += `<h2 style="margin-bottom:5px; text-align:center;">${koPhases[currentPhase]}</h2><p style="text-align:center; font-size:0.8rem; color:#666; margin-bottom:15px;">Note: If tied after ET/Pens, enter the final aggregate score.</p>`;
+                matches.filter(m => m.phase === currentPhase).forEach((m) => {
+                    let t1HTML = getKnockoutTeamUI(m.rule1, m.manual_t1, thirdPlaces, standings, matches, m.id, 't1', false);
+                    let t2HTML = getKnockoutTeamUI(m.rule2, m.manual_t2, thirdPlaces, standings, matches, m.id, 't2', false);
+                    html += `<div class="match-card">
+                                <div class="match-date-header">📅 ${matchSchedule[m.id]} (CDMX)</div>
+                                <div class="match-row">${t1HTML}<div class="stat-inputs"><input type="number" min="0" id="s1_${m.id}" value="${m.s1}" placeholder="⚽"></div></div>
+                                <div class="match-row">${t2HTML}<div class="stat-inputs"><input type="number" min="0" id="s2_${m.id}" value="${m.s2}" placeholder="⚽"></div></div>
+                                <button class="save-btn" id="btn_${m.id}" data-action="save-match" data-match="${m.id}">Save Result</button>
+                            </div>`;
+                });
+            }
+            html += `</div>`;
+            document.getElementById('app-content').innerHTML = html;
+        }
+
+        function renderFantasy() {
+            const matches = initMatches();
+            const fantasy = safeGetFantasy();
+            const standings = calculateStandings(matches);
+            
+            let thirdPlaces = [];
+            for (const [group, teams] of Object.entries(standings)) { thirdPlaces.push(teams[2]); }
+            thirdPlaces.sort((a, b) => { if (b.pts !== a.pts) return b.pts - a.pts; if (b.gd !== a.gd) return b.gd - a.gd; if (b.gf !== a.gf) return b.gf - a.gf; return (a.yc + (a.rc * 3)) - (b.yc + (b.rc * 3)); });
+
+            let exact = 0, correct = 0, totalPts = 0;
+
+            matches.forEach(m => {
+                let f = fantasy[m.id];
+                if (m.s1 !== "" && m.s2 !== "" && f && f.p1 !== "" && f.p2 !== "") {
+                    let s1 = parseInt(m.s1), s2 = parseInt(m.s2);
+                    let p1 = parseInt(f.p1), p2 = parseInt(f.p2);
+                    if (s1 === p1 && s2 === p2) { exact++; totalPts += 3; }
+                    else if ((s1>s2 && p1>p2) || (s1<s2 && p1<p2) || (s1===s2 && p1===p2)) { correct++; totalPts += 1; }
+                }
+            });
+
+            let html = `<div class="container">
+                <div class="fantasy-scorecard">
+                    <div class="score-box"><span class="score-val">${totalPts}</span><span class="score-lbl">Total Pts</span></div>
+                    <div class="score-box"><span class="score-val">${exact}</span><span class="score-lbl">Exact (3p)</span></div>
+                    <div class="score-box"><span class="score-val">${correct}</span><span class="score-lbl">Correct (1p)</span></div>
+                </div>`;
+
+            if (currentPhase === 'best3rd') {
+                 html += `<div class="placeholder-message"><h3>Best 3rd-Place Teams</h3><p>Predict match scores directly in the Knockout phases!</p></div>`;
+                 html += `</div>`;
+                 document.getElementById('app-content').innerHTML = html;
+                 return;
+            }
+
+            if (currentPhase === 'group') {
+                html += `<div class="group-selector"><label>Predict Group:</label><select id="groupSelect">`;
+                Object.keys(worldCupGroups).forEach(groupLetter => { html += `<option value="${groupLetter}" ${groupLetter === currentMatchGroup ? "selected" : ""}>Group ${groupLetter}</option>`; });
+                html += `</select></div>`;
+            } else if (koPhases[currentPhase]) {
+                html += `<h2 style="margin-bottom:15px; text-align:center;">Predict ${koPhases[currentPhase]}</h2>`;
+            }
+
+            const targetMatches = currentPhase === 'group' 
+                ? matches.filter(m => (m.phase === 'group' || !m.phase) && m.group === currentMatchGroup)
+                : matches.filter(m => m.phase === currentPhase);
+
+            targetMatches.forEach(m => {
+                let f = fantasy[m.id] || {p1: "", p2: ""};
+                let statusClass = "";
+                let realUI1 = "", realUI2 = "";
+
+                if (m.s1 !== "" && m.s2 !== "" && f.p1 !== "" && f.p2 !== "") {
+                    let s1 = parseInt(m.s1), s2 = parseInt(m.s2);
+                    let p1 = parseInt(f.p1), p2 = parseInt(f.p2);
+                    if (s1 === p1 && s2 === p2) statusClass = "status-exact";
+                    else if ((s1>s2 && p1>p2) || (s1<s2 && p1<p2) || (s1===s2 && p1===p2)) statusClass = "status-correct";
+                    else statusClass = "status-wrong";
+                    
+                    realUI1 = `<span class="real-score">${m.s1}</span>`;
+                    realUI2 = `<span class="real-score">${m.s2}</span>`;
+                }
+
+                let t1Label, t2Label;
+                if(currentPhase === 'group') {
+                    t1Label = `<span class="team-label">${getTeamFlag(m.t1)} ${m.t1}</span>`;
+                    t2Label = `<span class="team-label">${getTeamFlag(m.t2)} ${m.t2}</span>`;
+                } else {
+                    t1Label = getKnockoutTeamUI(m.rule1, m.manual_t1, thirdPlaces, standings, matches, m.id, 't1', true);
+                    t2Label = getKnockoutTeamUI(m.rule2, m.manual_t2, thirdPlaces, standings, matches, m.id, 't2', true);
+                }
+
+                html += `<div class="match-card ${statusClass}">
+                            <div class="match-date-header">📅 ${matchSchedule[m.id]} (CDMX)</div>
+                            <div class="match-row">${t1Label}
+                                <div class="stat-inputs"><input type="number" min="0" id="p1_${m.id}" value="${f.p1}" placeholder="⚽">${realUI1}</div>
+                            </div>
+                            <div class="match-row">${t2Label}
+                                <div class="stat-inputs"><input type="number" min="0" id="p2_${m.id}" value="${f.p2}" placeholder="⚽">${realUI2}</div>
+                            </div>
+                            <button class="save-btn" id="fbtn_${m.id}" data-action="save-fantasy" data-match="${m.id}" style="background:#6c757d">Save Prediction</button>
+                        </div>`;
+            });
+
+            html += `</div>`;
+            document.getElementById('app-content').innerHTML = html;
+        }
+
+        function changePhase(selectedPhase) {
+            currentPhase = selectedPhase;
+            switchView(currentView);
+        }
+
+        function changeMatchGroup(selectedGroup) {
+            currentMatchGroup = selectedGroup;
+            switchView(currentView);
+        }
+
+        function saveMatch(id) {
+            let matches = initMatches();
+            let matchIndex = matches.findIndex(m => m.id === id);
+            
+            let sel1 = document.getElementById(`t1_sel_${id}`);
+            if (sel1) matches[matchIndex].manual_t1 = sel1.value;
+            let sel2 = document.getElementById(`t2_sel_${id}`);
+            if (sel2) matches[matchIndex].manual_t2 = sel2.value;
+
+            matches[matchIndex].s1 = sanitizeScore(document.getElementById(`s1_${id}`).value);
+            matches[matchIndex].s2 = sanitizeScore(document.getElementById(`s2_${id}`).value);
+            
+            let yc1 = document.getElementById(`yc1_${id}`); if (yc1) matches[matchIndex].yc1 = sanitizeScore(yc1.value);
+            let rc1 = document.getElementById(`rc1_${id}`); if (rc1) matches[matchIndex].rc1 = sanitizeScore(rc1.value);
+            let yc2 = document.getElementById(`yc2_${id}`); if (yc2) matches[matchIndex].yc2 = sanitizeScore(yc2.value);
+            let rc2 = document.getElementById(`rc2_${id}`); if (rc2) matches[matchIndex].rc2 = sanitizeScore(rc2.value);
+
+            safeSaveMatches(matches);
+            const btn = document.getElementById(`btn_${id}`);
+            btn.textContent = "Saved ✓"; btn.classList.add("saved");
+            setTimeout(() => { btn.textContent = "Save Result"; btn.classList.remove("saved"); if (currentView === 'matches') renderMatches(); }, 1000);
+        }
+
+        function saveFantasy(id) {
+            let fantasy = safeGetFantasy();
+            let p1 = sanitizeScore(document.getElementById(`p1_${id}`).value);
+            let p2 = sanitizeScore(document.getElementById(`p2_${id}`).value);
+            
+            fantasy[id] = { p1: p1, p2: p2 };
+            safeSaveFantasy(fantasy);
+            
+            const btn = document.getElementById(`fbtn_${id}`);
+            btn.textContent = "Predicted ✓"; btn.classList.add("saved");
+            setTimeout(() => { renderFantasy(); }, 800); 
+        }
+
+        function switchView(view) {
+            currentView = view;
+            var navBtns = document.querySelectorAll('.bottom-nav button');
+            for (var i = 0; i < navBtns.length; i++) {
+                navBtns[i].classList.remove('active');
+            }
+            document.getElementById('nav-' + view).classList.add('active');
+            
+            try {
+                if (view === 'standings') renderStandings();
+                if (view === 'matches') renderMatches();
+                if (view === 'fantasy') renderFantasy();
+            } catch (error) { 
+                document.getElementById('app-content').innerHTML = `
+                    <div class="error-message">
+                        <h3>Render Engine Error</h3>
+                        <p>${error.message}</p>
+                    </div>`; 
+            }
+        }
+
+        // ==========================================
+        // NEW EXPORT/IMPORT JSON FILE ENGINE
+        // ==========================================
+        function exportDataFile() {
+            var dataStr = JSON.stringify(globalData, null, 2);
+            var blob = new Blob([dataStr], { type: "application/json" });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = "wc26_backup.json";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function importDataFile(event) {
+            var file = event.target.files[0];
+            if (!file) return;
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    var parsed = JSON.parse(e.target.result);
+                    if (parsed && typeof parsed === 'object') {
+                        globalData.matches = Array.isArray(parsed.matches) ? parsed.matches : null;
+                        globalData.fantasy = (parsed.fantasy && typeof parsed.fantasy === 'object') ? parsed.fantasy : {};
+                        initMatches(); 
+                        switchView(currentView);
+                        alert("Data loaded successfully!");
+                    } else {
+                        alert("Invalid file format.");
+                    }
+                } catch(err) {
+                    alert("Error parsing the JSON file.");
+                }
+                // Reset input field so you can load the same file again if needed
+                document.getElementById('fileImporter').value = '';
             };
             reader.readAsText(file);
-            // Reset input so the same file can be loaded again if needed
-            e.target.value = ""; 
+        }
+
+        document.getElementById('fileImporter').addEventListener('change', importDataFile);
+
+        document.addEventListener("DOMContentLoaded", () => { 
+            globalData.matches = JSON.parse(localStorage.getItem('wc26_matches'));
+            globalData.fantasy = JSON.parse(localStorage.getItem('wc26_fantasy')) || {};
+            switchView('standings'); 
         });
 
-        // =========================================================
-        // ROUTING / CLICK LISTENERS
-        // =========================================================
         document.addEventListener("click", function(e) {
-            let target = e.target;
-            while (target != null && target !== document.body && !target.dataset.action) {
+            var target = e.target;
+            while (target && target !== document && target.tagName !== 'BUTTON') {
                 target = target.parentNode;
             }
-            if (!target || !target.dataset || !target.dataset.action) return;
+            if (!target || target.tagName !== 'BUTTON' || !target.dataset.action) return;
 
             if (target.dataset.action === "switch-view") {
-                switchView(target.dataset.view); // Call your existing switchView function
+                switchView(target.dataset.view);
+            } else if (target.dataset.action === "save-match") {
+                saveMatch(target.dataset.match);
+            } else if (target.dataset.action === "save-fantasy") {
+                saveFantasy(target.dataset.match);
             } else if (target.dataset.action === "open-reset-modal") {
                 document.getElementById("resetModal").style.display = "flex";
             } else if (target.dataset.action === "cancel-reset") {
                 document.getElementById("resetModal").style.display = "none";
             } else if (target.dataset.action === "confirm-reset") {
                 globalData = { matches: null, fantasy: {} };
-                initMatches(); // Re-initialize your matches
-                switchView(currentView); // Refresh View
+                initMatches();
+                switchView(currentView);
                 document.getElementById("resetModal").style.display = "none";
             } else if (target.dataset.action === "export-json") {
                 exportDataFile();
             } else if (target.dataset.action === "import-json") {
-                document.getElementById("fileImporter").click(); // Capacitor intercepts this natively!
+                document.getElementById("fileImporter").click();
             }
         });
 
-        // Wait for DOM
-        document.addEventListener('DOMContentLoaded', () => {
-            initMatches(); 
-            switchView('standings');
+        document.addEventListener("change", function(e) {
+            if (e.target.id === "globalPhaseSelect") {
+                changePhase(e.target.value);
+            } else if (e.target.id === "groupSelect") {
+                changeMatchGroup(e.target.value);
+            }
         });
     </script>
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js');
-            });
-        }
-</script>
 </body>
 </html>
