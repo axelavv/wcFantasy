@@ -97,6 +97,31 @@
         .modal-btn-confirm { background: #dc3545; color: white; }
         
         .match-date-header { font-size: 0.8rem; color: #888; margin-bottom: 10px; text-align: center; border-bottom: 1px solid #f0f0f0; padding-bottom: 5px; }
+
+        /* ── Knockout Bracket ── */
+        .bk-toggle-btn { width:100%; padding:11px; background:#0056b3; color:white; border:none; border-radius:6px; font-size:0.95rem; font-weight:bold; cursor:pointer; margin-bottom:14px; letter-spacing:0.3px; }
+        .bk-toggle-btn:active { background:#004494; }
+        .bk-scroll { overflow-x:auto; overflow-y:hidden; padding:0 0 12px; -webkit-overflow-scrolling:touch; }
+        .bk-bracket { display:flex; flex-direction:row; height:800px; position:relative; min-width:680px; }
+        .bk-svg-layer { position:absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; overflow:visible; }
+        .bk-round { display:flex; flex-direction:column; justify-content:space-around; width:128px; flex-shrink:0; padding-top:26px; }
+        .bk-round-label { text-align:center; font-weight:700; font-size:0.65rem; color:#888; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:2px; position:absolute; }
+        .bk-gap { width:22px; flex-shrink:0; }
+        .bk-match-node { background:var(--card-bg); border:1px solid #d8d8d8; border-radius:5px; overflow:hidden; font-size:0.71rem; box-shadow:0 1px 3px rgba(0,0,0,0.07); }
+        .bk-match-node.bk-current { border-color:var(--primary); box-shadow:0 0 0 2px rgba(0,123,255,0.25); }
+        .bk-team-row { display:flex; align-items:center; padding:5px 6px; gap:3px; border-bottom:1px solid #f2f2f2; min-height:24px; }
+        .bk-team-row:last-child { border-bottom:none; }
+        .bk-flag { font-size:0.82rem; line-height:1; }
+        .bk-tname { flex:1; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:58px; color:#333; }
+        .bk-tname.tbd { color:#bbb; font-style:italic; font-weight:400; font-size:0.66rem; }
+        .bk-tscore { font-weight:700; min-width:13px; text-align:center; color:#111; }
+        .bk-team-row.bk-w { background:#f0fdf4; }
+        .bk-team-row.bk-l { opacity:0.5; }
+        .bk-3rd-wrap { margin-top:10px; display:flex; align-items:center; gap:10px; }
+        .bk-3rd-label { font-size:0.72rem; font-weight:700; color:#888; text-transform:uppercase; white-space:nowrap; }
+        .bk-champion-wrap { text-align:center; margin-top:8px; padding:8px; background:#fffbf0; border:1px solid #ffc107; border-radius:6px; }
+        .bk-champion-wrap .champ-title { font-size:0.7rem; color:#888; text-transform:uppercase; font-weight:700; }
+        .bk-champion-wrap .champ-name { font-size:1.1rem; font-weight:800; color:#333; }
     </style>
 </head>
 <body>
@@ -189,6 +214,7 @@
         var currentPhase = 'group';
         var currentMatchGroup = 'A';
         var koPhases = { r32: "Round of 32", r16: "Round of 16", qf: "Quarter-finals", sf: "Semi-finals", "3rd": "3rd Place Match", final: "Final" };
+        var showBracket = false;
 
         function getTeamFlag(id) {
             for (const group in worldCupGroups) {
@@ -353,6 +379,174 @@
             }
         }
 
+        // ==========================================
+        // KNOCKOUT BRACKET TREE
+        // ==========================================
+        // Bracket order (top→bottom within the visual tree):
+        // R32  pairs → R16 →  QF  →  SF  → Final
+        var BRACKET_R32 = ['r32-1','r32-4','r32-0','r32-2','r32-10','r32-9','r32-8','r32-7',
+                           'r32-12','r32-3','r32-5','r32-6','r32-14','r32-13','r32-11','r32-15'];
+        var BRACKET_R16 = ['r16-0','r16-1','r16-4','r16-5','r16-2','r16-3','r16-6','r16-7'];
+        var BRACKET_QF  = ['qf-0','qf-1','qf-2','qf-3'];
+        var BRACKET_SF  = ['sf-0','sf-1'];
+
+        function renderKnockoutBracket() {
+            var matches   = initMatches();
+            var standings = calculateStandings(matches);
+            var thirdPlaces = [];
+            for (var g in standings) { thirdPlaces.push(standings[g][2]); }
+            thirdPlaces.sort(function(a,b){
+                if(b.pts!==a.pts) return b.pts-a.pts;
+                if(b.gd!==a.gd)  return b.gd-a.gd;
+                if(b.gf!==a.gf)  return b.gf-a.gf;
+                return (a.yc+(a.rc*3))-(b.yc+(b.rc*3));
+            });
+
+            function resolvedTeam(matchId, tKey) {
+                var m = matches.find(function(x){ return x.id === matchId; });
+                if (!m) return null;
+                var rule   = tKey === 't1' ? m.rule1  : m.rule2;
+                var manual = tKey === 't1' ? m.manual_t1 : m.manual_t2;
+                return resolveParticipant(rule, manual, thirdPlaces, standings, matches);
+            }
+
+            function matchNode(matchId) {
+                var m = matches.find(function(x){ return x.id === matchId; });
+                if (!m) return '<div class="bk-match-node" id="bk-'+matchId+'"><div class="bk-team-row"><span class="bk-tname tbd">TBD</span></div><div class="bk-team-row"><span class="bk-tname tbd">TBD</span></div></div>';
+
+                var t1 = resolvedTeam(matchId,'t1');
+                var t2 = resolvedTeam(matchId,'t2');
+                var s1 = m.s1, s2 = m.s2;
+                var hasResult = s1 !== '' && s2 !== '';
+                var t1wins = hasResult && parseInt(s1) > parseInt(s2);
+                var t2wins = hasResult && parseInt(s2) > parseInt(s1);
+
+                function teamRow(team, score, wins, played) {
+                    var wl = '';
+                    if (played && wins) wl = ' bk-w';
+                    else if (played && !wins) wl = ' bk-l';
+                    var nm  = team ? team.id  : '?';
+                    var flg = team ? team.flag : '';
+                    var tbd = !team;
+                    return '<div class="bk-team-row'+wl+'">'
+                        + (flg ? '<span class="bk-flag">'+flg+'</span>' : '')
+                        + '<span class="bk-tname'+(tbd?' tbd':'')+'">'+nm+'</span>'
+                        + (hasResult ? '<span class="bk-tscore">'+score+'</span>' : '')
+                        + '</div>';
+                }
+
+                var isCurrent = matchId.split('-')[0] === currentPhase || (currentPhase === '3rd' && matchId === '3rd-0') || (currentPhase === 'final' && matchId === 'final-0');
+                return '<div class="bk-match-node'+(isCurrent?' bk-current':'')+'" id="bk-'+matchId+'">'
+                    + teamRow(t1, s1, t1wins, hasResult)
+                    + teamRow(t2, s2, t2wins, hasResult)
+                    + '</div>';
+            }
+
+            // Build champion display
+            function championBanner() {
+                var m = matches.find(function(x){ return x.id === 'final-0'; });
+                if (!m || m.s1 === '' || m.s2 === '') return '';
+                var t1 = resolvedTeam('final-0','t1'), t2 = resolvedTeam('final-0','t2');
+                var champ = parseInt(m.s1) > parseInt(m.s2) ? t1 : (parseInt(m.s2) > parseInt(m.s1) ? t2 : null);
+                if (!champ) return '';
+                return '<div class="bk-champion-wrap"><div class="champ-title">🏆 World Champion</div><div class="champ-name">'+champ.flag+' '+champ.id+'</div></div>';
+            }
+
+            var html = '<div class="bk-scroll"><div class="bk-bracket" id="bk-main">'
+                + '<svg class="bk-svg-layer" id="bk-svg"></svg>';
+
+            // R32
+            html += '<div class="bk-round"><span class="bk-round-label" style="width:128px">R32</span>';
+            BRACKET_R32.forEach(function(id){ html += matchNode(id); });
+            html += '</div>';
+
+            html += '<div class="bk-gap"></div>';
+
+            // R16
+            html += '<div class="bk-round"><span class="bk-round-label" style="width:128px">R16</span>';
+            BRACKET_R16.forEach(function(id){ html += matchNode(id); });
+            html += '</div>';
+
+            html += '<div class="bk-gap"></div>';
+
+            // QF
+            html += '<div class="bk-round"><span class="bk-round-label" style="width:128px">Quarter-finals</span>';
+            BRACKET_QF.forEach(function(id){ html += matchNode(id); });
+            html += '</div>';
+
+            html += '<div class="bk-gap"></div>';
+
+            // SF
+            html += '<div class="bk-round"><span class="bk-round-label" style="width:128px">Semi-finals</span>';
+            BRACKET_SF.forEach(function(id){ html += matchNode(id); });
+            html += '</div>';
+
+            html += '<div class="bk-gap"></div>';
+
+            // Final
+            html += '<div class="bk-round"><span class="bk-round-label" style="width:128px">🏆 Final</span>'
+                + matchNode('final-0')
+                + '</div>';
+
+            html += '</div>'; // .bk-bracket
+
+            // 3rd place below bracket
+            html += '<div class="bk-3rd-wrap">'
+                + '<span class="bk-3rd-label">🥉 3rd Place:</span>'
+                + '<div style="width:128px">' + matchNode('3rd-0') + '</div>'
+                + '</div>';
+
+            html += championBanner();
+            html += '</div>'; // .bk-scroll
+
+            return html;
+        }
+
+        function drawBracketConnectors() {
+            var bracket = document.getElementById('bk-main');
+            var svg     = document.getElementById('bk-svg');
+            if (!bracket || !svg) return;
+
+            var br = bracket.getBoundingClientRect();
+
+            // rounds[r] = ordered list of match IDs
+            var rounds = [BRACKET_R32, BRACKET_R16, BRACKET_QF, BRACKET_SF, ['final-0']];
+
+            var paths = '';
+            var COLOR = '#d0d7de';
+            var LW    = 1.5;
+
+            for (var r = 0; r < rounds.length - 1; r++) {
+                var cur  = rounds[r];
+                var next = rounds[r + 1];
+                for (var i = 0; i < cur.length; i += 2) {
+                    var el1   = document.getElementById('bk-' + cur[i]);
+                    var el2   = document.getElementById('bk-' + cur[i + 1]);
+                    var elNxt = document.getElementById('bk-' + next[Math.floor(i / 2)]);
+                    if (!el1 || !el2 || !elNxt) continue;
+
+                    var r1  = el1.getBoundingClientRect();
+                    var r2  = el2.getBoundingClientRect();
+                    var rn  = elNxt.getBoundingClientRect();
+
+                    var x1  = r1.right  - br.left;
+                    var y1  = r1.top    + r1.height / 2 - br.top;
+                    var y2  = r2.top    + r2.height / 2 - br.top;
+                    var xn  = rn.left   - br.left;
+                    var yn  = rn.top    + rn.height / 2 - br.top;
+                    var xM  = (x1 + xn) / 2; // midpoint x for the connector
+
+                    // Horizontal from el1 → xM
+                    // Vertical xM y1 → y2
+                    // Horizontal xM → next
+                    paths += '<path d="M '+x1+' '+y1+' H '+xM+' V '+y2+' H '+x1+'" stroke="'+COLOR+'" stroke-width="'+LW+'" fill="none"/>';
+                    paths += '<path d="M '+xM+' '+yn+' H '+xn+'" stroke="'+COLOR+'" stroke-width="'+LW+'" fill="none"/>';
+                }
+            }
+
+            svg.innerHTML = paths;
+        }
+
         function renderStandings() {
             const matches = initMatches();
             const standings = calculateStandings(matches);
@@ -411,17 +605,25 @@
                 for (const [group, teams] of Object.entries(standings)) { thirdPlaces.push(teams[2]); }
                 thirdPlaces.sort((a, b) => { if (b.pts !== a.pts) return b.pts - a.pts; if (b.gd !== a.gd) return b.gd - a.gd; if (b.gf !== a.gf) return b.gf - a.gf; return (a.yc + (a.rc * 3)) - (b.yc + (b.rc * 3)); });
                 
-                html += `<h2 style="margin-bottom:5px; text-align:center;">${koPhases[currentPhase]}</h2><p style="text-align:center; font-size:0.8rem; color:#666; margin-bottom:15px;">Note: If tied after ET/Pens, enter the final aggregate score.</p>`;
-                matches.filter(m => m.phase === currentPhase).forEach((m) => {
-                    let t1HTML = getKnockoutTeamUI(m.rule1, m.manual_t1, thirdPlaces, standings, matches, m.id, 't1', false);
-                    let t2HTML = getKnockoutTeamUI(m.rule2, m.manual_t2, thirdPlaces, standings, matches, m.id, 't2', false);
-                    html += `<div class="match-card">
-                                <div class="match-date-header">📅 ${matchSchedule[m.id]} (CDMX)</div>
-                                <div class="match-row">${t1HTML}<div class="stat-inputs"><input type="number" min="0" id="s1_${m.id}" value="${m.s1}" placeholder="⚽"></div></div>
-                                <div class="match-row">${t2HTML}<div class="stat-inputs"><input type="number" min="0" id="s2_${m.id}" value="${m.s2}" placeholder="⚽"></div></div>
-                                <button class="save-btn" id="btn_${m.id}" data-action="save-match" data-match="${m.id}">Save Result</button>
-                            </div>`;
-                });
+                html += `<h2 style="margin-bottom:5px; text-align:center;">${koPhases[currentPhase]}</h2><p style="text-align:center; font-size:0.8rem; color:#666; margin-bottom:10px;">Note: If tied after ET/Pens, enter the final aggregate score.</p>`;
+
+                // Bracket toggle button
+                html += `<button class="bk-toggle-btn" data-action="toggle-bracket">${showBracket ? '📋 Match Cards' : '🌳 Bracket View'}</button>`;
+
+                if (showBracket) {
+                    html += renderKnockoutBracket();
+                } else {
+                    matches.filter(m => m.phase === currentPhase).forEach((m) => {
+                        let t1HTML = getKnockoutTeamUI(m.rule1, m.manual_t1, thirdPlaces, standings, matches, m.id, 't1', false);
+                        let t2HTML = getKnockoutTeamUI(m.rule2, m.manual_t2, thirdPlaces, standings, matches, m.id, 't2', false);
+                        html += `<div class="match-card">
+                                    <div class="match-date-header">📅 ${matchSchedule[m.id]} (CDMX)</div>
+                                    <div class="match-row">${t1HTML}<div class="stat-inputs"><input type="number" min="0" id="s1_${m.id}" value="${m.s1}" placeholder="⚽"></div></div>
+                                    <div class="match-row">${t2HTML}<div class="stat-inputs"><input type="number" min="0" id="s2_${m.id}" value="${m.s2}" placeholder="⚽"></div></div>
+                                    <button class="save-btn" id="btn_${m.id}" data-action="save-match" data-match="${m.id}">Save Result</button>
+                                </div>`;
+                    });
+                }
             }
             html += `</div>`;
             document.getElementById('app-content').innerHTML = html;
@@ -517,7 +719,12 @@
 
         function changePhase(selectedPhase) {
             currentPhase = selectedPhase;
+            // bracket only applies to KO phases; reset if switching to group/best3rd
+            if (!koPhases[selectedPhase]) showBracket = false;
             switchView(currentView);
+            if (showBracket && currentView === 'matches') {
+                requestAnimationFrame(function(){ requestAnimationFrame(drawBracketConnectors); });
+            }
         }
 
         function changeMatchGroup(selectedGroup) {
@@ -568,10 +775,16 @@
                 navBtns[i].classList.remove('active');
             }
             document.getElementById('nav-' + view).classList.add('active');
+            if (view !== 'matches') showBracket = false;
             
             try {
                 if (view === 'standings') renderStandings();
-                if (view === 'matches') renderMatches();
+                if (view === 'matches') {
+                    renderMatches();
+                    if (showBracket) {
+                        requestAnimationFrame(function(){ requestAnimationFrame(drawBracketConnectors); });
+                    }
+                }
                 if (view === 'fantasy') renderFantasy();
             } catch (error) { 
                 document.getElementById('app-content').innerHTML = `
@@ -657,6 +870,14 @@
                 exportDataFile();
             } else if (target.dataset.action === "import-json") {
                 document.getElementById("fileImporter").click();
+            } else if (target.dataset.action === "toggle-bracket") {
+                showBracket = !showBracket;
+                renderMatches();
+                if (showBracket) {
+                    requestAnimationFrame(function() {
+                        requestAnimationFrame(drawBracketConnectors);
+                    });
+                }
             }
         });
 
