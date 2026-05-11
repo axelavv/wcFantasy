@@ -98,6 +98,11 @@
         
         .match-date-header { font-size: 0.8rem; color: #888; margin-bottom: 10px; text-align: center; border-bottom: 1px solid #f0f0f0; padding-bottom: 5px; }
 
+        .player-name-card { background: var(--card-bg); border-radius: 8px; padding: 12px 15px; margin-bottom: 15px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); display: flex; align-items: center; gap: 10px; }
+        .player-name-card label { font-size: 0.9rem; font-weight: bold; color: #555; white-space: nowrap; }
+        .player-name-card input { flex: 1; padding: 8px 10px; font-size: 1rem; border: 1px solid var(--border); border-radius: 6px; outline: none; background: var(--bg-color); }
+        .player-name-card input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(0,123,255,0.15); }
+
         /* ── Knockout Bracket ── */
         .bk-toggle-btn { width:100%; padding:11px; background:#0056b3; color:white; border:none; border-radius:6px; font-size:0.95rem; font-weight:bold; cursor:pointer; margin-bottom:14px; letter-spacing:0.3px; }
         .bk-toggle-btn:active { background:#004494; }
@@ -171,7 +176,8 @@
         // CORE DATA ARCHITECTURE: In-Memory JSON State
         var globalData = {
             matches: null,
-            fantasy: {}
+            fantasy: {},
+            playerName: ""
         };
 
         var worldCupGroups = {
@@ -651,6 +657,10 @@
             });
 
             let html = `<div class="container">
+                <div class="player-name-card">
+                    <label>👤</label>
+                    <input type="text" id="fantasyPlayerName" value="${(globalData.playerName || '').replace(/"/g, '&quot;')}" placeholder="Enter your name…" maxlength="40" autocomplete="off">
+                </div>
                 <div class="fantasy-scorecard">
                     <div class="score-box"><span class="score-val">${totalPts}</span><span class="score-lbl">Total Pts</span></div>
                     <div class="score-box"><span class="score-val">${exact}</span><span class="score-lbl">Exact (3p)</span></div>
@@ -821,6 +831,8 @@
                     if (parsed && typeof parsed === 'object') {
                         globalData.matches = Array.isArray(parsed.matches) ? parsed.matches : null;
                         globalData.fantasy = (parsed.fantasy && typeof parsed.fantasy === 'object') ? parsed.fantasy : {};
+                        globalData.playerName = (typeof parsed.playerName === 'string') ? parsed.playerName : "";
+                        localStorage.setItem('wc26_playerName', globalData.playerName);
                         initMatches(); 
                         switchView(currentView);
                         alert("Data loaded successfully!");
@@ -841,6 +853,7 @@
         document.addEventListener("DOMContentLoaded", () => { 
             globalData.matches = JSON.parse(localStorage.getItem('wc26_matches'));
             globalData.fantasy = JSON.parse(localStorage.getItem('wc26_fantasy')) || {};
+            globalData.playerName = localStorage.getItem('wc26_playerName') || "";
             switchView('standings'); 
         });
 
@@ -862,7 +875,7 @@
             } else if (target.dataset.action === "cancel-reset") {
                 document.getElementById("resetModal").style.display = "none";
             } else if (target.dataset.action === "confirm-reset") {
-                globalData = { matches: null, fantasy: {} };
+                globalData = { matches: null, fantasy: {}, playerName: "" };
                 initMatches();
                 switchView(currentView);
                 document.getElementById("resetModal").style.display = "none";
@@ -886,6 +899,13 @@
                 changePhase(e.target.value);
             } else if (e.target.id === "groupSelect") {
                 changeMatchGroup(e.target.value);
+            }
+        });
+
+        document.addEventListener("input", function(e) {
+            if (e.target.id === "fantasyPlayerName") {
+                globalData.playerName = e.target.value;
+                localStorage.setItem('wc26_playerName', e.target.value);
             }
         });
     </script>
