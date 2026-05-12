@@ -56,6 +56,30 @@ Use the icons at the top of the screen to manage your data:
 * 📂 **Load (Top Left):** Tap the folder icon to open your phone's file picker. Select your previously saved `.json` file to instantly restore all your match results and predictions.
 * 🗑️ **Erase Memory:** Tap the trash can to completely wipe the screen clean and start a brand-new bracket. 
 
+---
+
+## 🔄 How to Update to the Latest Version
+If you don't see the new features (like the purple Bracket button), you may need to clear your browser's cache.
+
+**⚠️ IMPORTANT: Since this app runs in your browser's memory, save your progress (💾 icon) before following these steps, as clearing site data may reset your current unsaved bracket.**
+
+### For Android (Chrome):
+1. Open Chrome.
+2. Tap the three dots (⋮) in the top right and select Settings.
+3. Scroll down and tap Site settings, then tap All sites.
+4. Tap the search icon (🔍) and search for axelavv.github.io/wcFantasy/wc2026.
+5. Tap on the site name in the results.
+6. Tap the Clear & reset (or Delete) button and confirm.
+7. Go back and refresh the website.
+
+### For iOS (Safari):
+1. Open the Settings app on your iPhone.
+2. Scroll down and tap Safari.
+3. Scroll all the way to the bottom and tap Advanced, then Website Data.
+4. In the search bar at the top, type [YOUR_APP_URL].
+5. Swipe left on the site name in the list and tap Delete.
+6. Close Safari and reopen the website.
+
 ***
 
 ***
@@ -117,3 +141,27 @@ Usa los íconos en la parte superior de la pantalla para administrar tus datos:
 * 💾 **Guardar (Arriba a la derecha):** Toca el ícono del disquete para descargar tu quiniela a tu teléfono. Automáticamente nombrará el archivo `wc26_TUNOMBRE.json` según el nombre que ingresaste en la pestaña Fantasy. **¡Haz esto cada vez que termines de hacer cambios!**
 * 📂 **Cargar (Arriba a la izquierda):** Toca el ícono de la carpeta para abrir el selector de archivos de tu teléfono. Selecciona tu archivo `.json` guardado previamente para restaurar instantáneamente todos tus resultados y predicciones.
 * 🗑️ **Borrar Memoria:** Toca el basurero para limpiar completamente la pantalla y comenzar una quiniela totalmente nueva.
+
+---
+
+## 🔄 Cómo actualizar a la versión más reciente
+Si no ves las nuevas funciones (como el botón morado del Árbol Visual), es posible que necesites borrar la "caché" de tu navegador.
+
+**⚠️ IMPORTANTE: Como esta app funciona en la memoria del navegador, guarda tu progreso (ícono 💾) antes de seguir estos pasos, ya que borrar los datos del sitio podría reiniciar tu quiniela actual.**
+
+### En Android (Chrome):
+1. Abre Chrome.
+2. Toca los tres puntos (⋮) arriba a la derecha y selecciona Configuración.
+3. Desplázate hacia abajo y toca Configuración de sitios, luego Todos los sitios.
+4. Toca el ícono de búsqueda (🔍) y escribe axelavv.github.io/wcFantasy/wc2026.
+5. Toca el nombre del sitio en los resultados.
+6. Toca el botón Borrar y restablecer (o Eliminar) y confirma.
+7. Regresa y actualiza el sitio web.
+
+### En iOS (Safari):
+1. Abre la app de Ajustes (Configuración) en tu iPhone.
+2. Desplázate hacia abajo y toca Safari.
+3. Ve hasta el final de la lista y toca Avanzado, luego Datos de sitios web.
+4. En la barra de búsqueda en la parte superior, escribe axelavv.github.io/wcFantasy/wc2026.
+5. Desliza hacia la izquierda sobre el nombre del sitio en la lista y toca Eliminar.
+6. Cierra Safari y vuelve a abrir el sitio web.
