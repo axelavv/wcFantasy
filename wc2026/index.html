@@ -244,6 +244,7 @@
         }
         function safeSaveFantasy(data) {
             globalData.fantasy = data;
+            localStorage.setItem('wc26_fantasy', JSON.stringify(data));
         }
 
         function sanitizeScore(val) {
@@ -876,6 +877,9 @@
                 document.getElementById("resetModal").style.display = "none";
             } else if (target.dataset.action === "confirm-reset") {
                 globalData = { matches: null, fantasy: {}, playerName: "" };
+                localStorage.removeItem('wc26_matches');
+                localStorage.removeItem('wc26_fantasy');
+                localStorage.removeItem('wc26_playerName');
                 initMatches();
                 switchView(currentView);
                 document.getElementById("resetModal").style.display = "none";
