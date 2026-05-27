@@ -103,6 +103,11 @@
         .player-name-card input { flex: 1; padding: 8px 10px; font-size: 1rem; border: 1px solid var(--border); border-radius: 6px; outline: none; background: var(--bg-color); }
         .player-name-card input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(0,123,255,0.15); }
 
+        .fantasy-locked { opacity: 0.82; }
+        .fantasy-locked .match-date-header { color: #999; }
+        .locked-badge { font-size: 0.72rem; color: #888; display: flex; align-items: center; gap: 4px; margin-top: 2px; margin-bottom: 6px; justify-content: center; }
+        .stat-inputs input:disabled { background: var(--bg-color); color: #555; border-color: #e0e0e0; cursor: not-allowed; -webkit-text-fill-color: #555; opacity: 1; }
+
         /* ── Knockout Bracket ── */
         .bk-toggle-btn { width:100%; padding:11px; background:#0056b3; color:white; border:none; border-radius:6px; font-size:0.95rem; font-weight:bold; cursor:pointer; margin-bottom:14px; letter-spacing:0.3px; }
         .bk-toggle-btn:active { background:#004494; }
@@ -216,7 +221,32 @@
             "final-0": "Jul 19, 1:00 PM"
         };
 
-        var currentView = 'standings';
+        // Parse a schedule string like "Jun 11, 1:00 PM" as CDT (UTC-5) and return a Date
+        var MONTH_MAP = { Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5, Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11 };
+        function parseKickoffCDT(str) {
+            // str format: "Jun 11, 1:00 PM"
+            var m = str.match(/^(\w{3})\s+(\d+),\s+(\d+):(\d+)\s+(AM|PM)$/);
+            if (!m) return null;
+            var month  = MONTH_MAP[m[1]];
+            var day    = parseInt(m[2]);
+            var hour   = parseInt(m[3]);
+            var minute = parseInt(m[4]);
+            var ampm   = m[5];
+            if (ampm === 'PM' && hour !== 12) hour += 12;
+            if (ampm === 'AM' && hour === 12) hour = 0;
+            // CDT = UTC-5; build ISO string with explicit offset so Date parses correctly
+            var pad = function(n){ return n < 10 ? '0'+n : ''+n; };
+            var iso = '2026-'+pad(month+1)+'-'+pad(day)+'T'+pad(hour)+':'+pad(minute)+':00-05:00';
+            return new Date(iso);
+        }
+
+        function isMatchLocked(matchId) {
+            var sched = matchSchedule[matchId];
+            if (!sched) return false;
+            var kickoff = parseKickoffCDT(sched);
+            if (!kickoff) return false;
+            return Date.now() >= kickoff.getTime();
+        }
         var currentPhase = 'group';
         var currentMatchGroup = 'A';
         var koPhases = { r32: "Round of 32", r16: "Round of 16", qf: "Quarter-finals", sf: "Semi-finals", "3rd": "3rd Place Match", final: "Final" };
@@ -712,15 +742,17 @@
                     t2Label = getKnockoutTeamUI(m.rule2, m.manual_t2, thirdPlaces, standings, matches, m.id, 't2', true);
                 }
 
-                html += `<div class="match-card ${statusClass}">
+                let locked = isMatchLocked(m.id);
+                html += `<div class="match-card ${statusClass}${locked ? ' fantasy-locked' : ''}">
                             <div class="match-date-header">📅 ${matchSchedule[m.id]} (CDMX)</div>
+                            ${locked ? `<div class="locked-badge">🔒 Predictions locked — match started</div>` : ''}
                             <div class="match-row">${t1Label}
-                                <div class="stat-inputs"><input type="number" min="0" id="p1_${m.id}" value="${f.p1}" placeholder="⚽">${realUI1}</div>
+                                <div class="stat-inputs"><input type="number" min="0" id="p1_${m.id}" value="${f.p1}" placeholder="⚽"${locked ? ' disabled' : ''}>${realUI1}</div>
                             </div>
                             <div class="match-row">${t2Label}
-                                <div class="stat-inputs"><input type="number" min="0" id="p2_${m.id}" value="${f.p2}" placeholder="⚽">${realUI2}</div>
+                                <div class="stat-inputs"><input type="number" min="0" id="p2_${m.id}" value="${f.p2}" placeholder="⚽"${locked ? ' disabled' : ''}>${realUI2}</div>
                             </div>
-                            <button class="save-btn" id="fbtn_${m.id}" data-action="save-fantasy" data-match="${m.id}" style="background:#6c757d">Save Prediction</button>
+                            ${locked ? '' : `<button class="save-btn" id="fbtn_${m.id}" data-action="save-fantasy" data-match="${m.id}" style="background:#6c757d">Save Prediction</button>`}
                         </div>`;
             });
 
@@ -767,6 +799,7 @@
         }
 
         function saveFantasy(id) {
+            if (isMatchLocked(id)) return; // kickoff already passed
             let fantasy = safeGetFantasy();
             let p1 = sanitizeScore(document.getElementById(`p1_${id}`).value);
             let p2 = sanitizeScore(document.getElementById(`p2_${id}`).value);
